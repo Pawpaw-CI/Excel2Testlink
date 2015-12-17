@@ -64,6 +64,8 @@ class TestCase:
             self.execution_type = self.EXECUTION_TYPE_MANUAL  
         
     def importance_value(self, value):
+        if (value == None):
+            return self.IMPORTANCE_MEDIUM
         switcher = {
             "L": self.IMPORTANCE_LOW,
             "M": self.IMPORTANCE_MEDIUM,

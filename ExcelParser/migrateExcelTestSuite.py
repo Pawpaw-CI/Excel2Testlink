@@ -32,7 +32,7 @@ def read_excel_test_plan(filename="", test_plan="" , suite_name="", start_row=-1
     
             
     # Beware some E2E test will be missing with this pattern => E2E_1.x.2
-    test_id_pattern = re.compile("^[A-Z]+_[0-9]+.[0-9]+.[0-9]+$", re.IGNORECASE)
+    test_id_pattern = re.compile("^[A-Z]+_[A-Z0-9]+.[A-Z0-9]+.[A-Z0-9]+$", re.IGNORECASE)
     # story_pattern = re.compile("^Story:.*$", re.IGNORECASE)
 
     # service_suites = None;
