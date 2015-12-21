@@ -2,24 +2,33 @@
 Created on 21 de oct. de 2015
 
 @author: cgimenop
+@updated Oct 29th 2015
+
 '''
 
 
 import getopt
 import re
 import sys
-from xml.dom import minidom
-from TestCase import TestCase
-from TestSuite import TestSuite
+
+from TLSuite import TLSuite
+from TLCase import TLCase
 
 sys.path.insert(1,"lib/openpyxl")
 sys.path.insert(1,"lib/jdcal-1.0")
 sys.path.insert(1,"lib/et_xmlfile")
-import jdcal
-import xmlfile
+
+from xmlfile import *
+from jdcal import *
 from openpyxl import load_workbook
 
-
+class InvalidParameterException(Exception):
+    def __init__(self, name, value):
+        self.parameter = name
+        self.value = value
+    
+    def __str__(self):
+        return " ".join(["Invalid parameter", self.parameter], "with value", self.value)
 
 def read_excel_test_plan(filename="", test_plan="" , suite_name="", start_row=-1, end_row=-1):
     full_test_plan = load_workbook(filename, read_only=True)
@@ -32,12 +41,12 @@ def read_excel_test_plan(filename="", test_plan="" , suite_name="", start_row=-1
     
             
     # Beware some E2E test will be missing with this pattern => E2E_1.x.2
-    test_id_pattern = re.compile("^[A-Z]+_[A-Z0-9]+.[A-Z0-9]+.[A-Z0-9]+$", re.IGNORECASE)
+    test_id_pattern = re.compile("^[A-Z0-9]+_[A-Z0-9]+.[A-Z0-9]+.[A-Z0-9]+$", re.IGNORECASE)
     # story_pattern = re.compile("^Story:.*$", re.IGNORECASE)
 
     # service_suites = None;
     # endpoint_suites = None;
-    method_suite = TestSuite(title=suite_name);
+    method_suite = TLSuite(suite_name);
     # TODO: Somehow must detect which rows have content ideally automatic, user parameter may ve an option
     # for row in tests.iter_rows('A3:N32'):
     
@@ -45,70 +54,15 @@ def read_excel_test_plan(filename="", test_plan="" , suite_name="", start_row=-1
         
         if (row[0].value is not None):
             if (test_id_pattern.match(row[0].value) and method_suite is not None):      
-                case = TestCase(row)
-                method_suite.addCase(case)
+                case = TLCase(row)
+                method_suite.add_tlcase(case)
                 
     return method_suite
 
 def write_testlink_xml(test_suite, filename=""):
-    xml_doc = minidom.Document()
-        
-    xml_test_suite = xml_doc.createElement("testsuite")
-    xml_test_suite.setAttribute("name", test_suite.title)
-    xml_doc.appendChild(xml_test_suite)
-    
-    for case in test_suite.cases:
-        xml_test_case = xml_doc.createElement("testcase")
-        xml_test_case.setAttribute("name", case.title)
-        
-        summary = xml_doc.createElement("summary")
-        cdata = xml_doc.createCDATASection(case.summary)
-        summary.appendChild(cdata)
-        xml_test_case.appendChild(summary)
-        
-        preconditions = xml_doc.createElement("preconditions")
-        cdata = xml_doc.createCDATASection(case.preconditions)
-        preconditions.appendChild(cdata)
-        xml_test_case.appendChild(preconditions)
-        
-        steps = xml_doc.createElement("steps")
-        xml_test_case.appendChild(steps)
-        
-        step = xml_doc.createElement("step")
-        steps.appendChild(step)
-        
-        actions = xml_doc.createElement("actions")
-        step.appendChild(actions)
-        cdata = xml_doc.createCDATASection(case.steps)
-        actions.appendChild(cdata)
-        
-        expected_results = xml_doc.createElement("expectedresults")
-        step.appendChild(expected_results)
-        cdata = xml_doc.createCDATASection(case.expected_result)
-        expected_results.appendChild(cdata)
-        
-        
-        step_number = xml_doc.createElement("step_number")
-        step.appendChild(step_number)
-        cdata = xml_doc.createCDATASection("1")
-        step_number.appendChild(cdata)
-        
-        
-        execution_type = xml_doc.createElement("execution_type")
-        cdata = xml_doc.createCDATASection(case.execution_type)
-        execution_type.appendChild(cdata)
-        xml_test_case.appendChild(execution_type)
-        
-        
-        importance = xml_doc.createElement("importance")
-        cdata = xml_doc.createCDATASection(case.execution_type)
-        importance.appendChild(cdata)
-        xml_test_case.appendChild(importance)
-        
-        
-        xml_test_suite.appendChild(xml_test_case)
-        
-    xml_str = xml_doc.toprettyxml(indent="\t")
+    if (filename is ""):
+        raise
+    xml_str = test_suite.to_xml()
     
     with open(filename, "w") as f:
         f.write(xml_str)
@@ -148,7 +102,8 @@ for opt, value in opts:
         print ("migrateExcelTestSuite.py --filename <excel_test_plan> --sheet <test_plan_sheet> --start <start_row> --end <end_row> --suite <ouput_test_suite_name> --output <output_filename>")
         sys.exit(2)
         
-#TODO: Upper limit for excel row is not checked. Should be added
+#FIXME: Upper limit for excel row is not checked. Should be added
+#FIXME: No control oover start_row > end_row
 if (input_file == "" or sheet == "" or suite == "" or output_file == "" or start_row <= 0 or end_row <= 0):
     print ("One or more mandatory parameters are empty or have a invalid value")
     print ("migrateExcelTestSuite.py --filename <excel_test_plan> --sheet <test_plan_sheet> --start <start_row> --end <end_row> --suite <ouput_test_suite_name> --output <output_filename>")
