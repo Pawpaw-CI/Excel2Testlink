@@ -2,7 +2,6 @@
 Created on 21 de oct. de 2015
 
 @author: cgimenop
-@updated Oct 29th 2015
 '''
 
 from xml.dom import minidom
@@ -40,17 +39,20 @@ class TLCase:
     '''
     
     
-    def __init__(self, params = []):
+    def __init__(self, params = [], req_spec = None):
         '''
         Constructor
         '''
-        if (len(params) == 0):
-            return
         
+        if (len(params) == 0 or req_spec is None):
+            print("Invalid test case parameters")
+            raise
+        
+        self.req_spec_title = req_spec
         self.title = params[self.TITLE].value
         
         
-        self.summary = "</br>".join([params[self.CODE].value, params[self.TITLE].value, "Covers: ", params[self.LINKED_STORIES].value])
+        self.summary = "</br>".join([params[self.CODE].value, params[self.TITLE].value, "Covers: ", params[self.LINKED_STORIES].value.strip()])
                 
         self.importance = self.importance_value(params[self.IMPORTANCE].value)
         
@@ -67,6 +69,9 @@ class TLCase:
         else:
             self.execution_type = self.EXECUTION_TYPE_MANUAL  
         
+        self.requirements = dict()
+        self.get_requirements(params[self.LINKED_STORIES].value.split(","))
+        
     def importance_value(self, value):
         if (value == None):
             return self.IMPORTANCE_MEDIUM
@@ -76,6 +81,34 @@ class TLCase:
             self.EXCEL_IMPORTANCE_HIGH: self.IMPORTANCE_HIGH,
             }
         return switcher.get(value.upper(), self.IMPORTANCE_MEDIUM)
+    
+    def get_requirements(self, requirements_list = None):
+        if (requirements_list is None):
+            return self.requirements
+        
+        xml_doc = minidom.Document()
+        self.requirements = dict()
+        
+        for requirement in requirements_list:
+            
+            stripped_requirement = requirement.strip()
+            xml_requirement = xml_doc.createElement("requirement")
+            
+            req_spec = xml_doc.createElement("req_spec_title")
+            cdata = xml_doc.createCDATASection(self.req_spec_title)
+            req_spec.appendChild(cdata)
+            
+            title = xml_doc.createElement("title")
+            title_cdata = xml_doc.createCDATASection(stripped_requirement)
+            title.appendChild(title_cdata)
+            
+            xml_requirement.appendChild(req_spec)
+            xml_requirement.appendChild(title)
+            
+            if (stripped_requirement not in self.requirements):
+                self.requirements[stripped_requirement] = xml_requirement
+        
+        return self.requirements
     
     def to_xml(self):
         xml_doc = minidom.Document()
@@ -126,6 +159,19 @@ class TLCase:
         importance.appendChild(cdata)
         xml_test_case.appendChild(importance)
         
+        xml_requirements = xml_doc.createElement("requirements")
+        
+        for requirement_index in self.requirements:
+            case_requirement = self.requirements[requirement_index]
+            
+            doc_id = xml_doc.createElement("doc_id")
+            doc_id_cdata = xml_doc.createCDATASection(requirement_index)
+            doc_id.appendChild(doc_id_cdata)
+            case_requirement.appendChild(doc_id)
+            
+            xml_requirements.appendChild(case_requirement)
+        
+        xml_test_case.appendChild(xml_requirements)
         return xml_test_case
     
         

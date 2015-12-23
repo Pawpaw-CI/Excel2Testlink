@@ -30,7 +30,7 @@ class InvalidParameterException(Exception):
     def __str__(self):
         return " ".join(["Invalid parameter", self.parameter], "with value", self.value)
 
-def read_excel_test_plan(filename="", test_plan="" , suite_name="", start_row=-1, end_row=-1):
+def read_excel_test_plan(filename="", test_plan="" , suite_name="", start_row=-1, end_row=-1, requirements_id = ""):
     full_test_plan = load_workbook(filename, read_only=True)
     # TODO: Put all this into a class to reuse and allow call by the main script sheet by sheet parametrized
     # Does not work 4 unknown reason
@@ -54,26 +54,37 @@ def read_excel_test_plan(filename="", test_plan="" , suite_name="", start_row=-1
         
         if (row[0].value is not None):
             if (test_id_pattern.match(row[0].value) and method_suite is not None):      
-                case = TLCase(row)
+                case = TLCase(row, requirements_id)
                 method_suite.add_tlcase(case)
                 
     return method_suite
 
-def write_testlink_xml(test_suite, filename=""):
+def write_testlink_xml(test_suite, requirements_id = "", filename=""):
     if (filename is ""):
+        print ("Invalid empyt output filename")
         raise
-    xml_str = test_suite.to_xml()
     
+    requirements_xml = test_suite.xml_requirements(requirements_id)
+    #with open("pretty_requirements_"+filename, "w") as f:
+    #   f.write(requirements_xml.toprettyxml())
+    with open("requirements_"+filename, "w") as f:
+        f.write(requirements_xml.toxml())
+        
+    xml_str = test_suite.to_xml()
+    #with open("pretty_"+filename, "w") as f:
+    #    f.write(xml_str.toprettyxml())
     with open(filename, "w") as f:
-        f.write(xml_str)
+        f.write(xml_str.toxml())
                 
         
 
 ''' MAIN '''
+        #TODO: add overwrite flag
+invocation_sample = "migrateExcelTestSuite.py --filename <excel_test_plan> --sheet <test_plan_sheet> --start <start_row> --end <end_row> --suite <ouput_test_suite_name> --requirements <requirements_id> --output <output_filename>" 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "", ["filename=", "sheet=", "start=", "end=", "suite=", "output="])
+    opts, args = getopt.getopt(sys.argv[1:], "", ["filename=", "sheet=", "start=", "end=", "suite=", "requirements=", "output="])
 except getopt.GetoptError as err:
-    print ("migrateExcelTestSuite.py --filename <excel_test_plan> --sheet <test_plan_sheet> --start <start_row> --end <end_row> --suite <ouput_test_suite_name> --output <output_filename>")
+    print (invocation_sample)
     print(str(err))
     sys.exit(2)
 
@@ -83,34 +94,37 @@ suite = ""
 output_file = ""
 start_row = -1
 end_row = -1
+requirements_id = ""
 
 for opt, value in opts:
     if (opt == "--filename"):
-        input_file = value
+        input_file = value.strip()
     elif (opt == "--sheet"):
-        sheet = value     
+        sheet = value.strip()     
     elif (opt == "--suite"):
-        suite = value
+        suite = value.strip()
     elif (opt == "--output"):
         output_file = value
     elif (opt == "--start"):
         start_row = int(value)
     elif (opt == "--end"):
         end_row = int(value)
+    elif (opt == "--requirements"):
+        requirements_id = value.strip()
     else:
         print ("Unsupported option "+opt +" with value "+ value)
-        print ("migrateExcelTestSuite.py --filename <excel_test_plan> --sheet <test_plan_sheet> --start <start_row> --end <end_row> --suite <ouput_test_suite_name> --output <output_filename>")
+        print (invocation_sample)
         sys.exit(2)
         
 #FIXME: Upper limit for excel row is not checked. Should be added
-#FIXME: No control oover start_row > end_row
-if (input_file == "" or sheet == "" or suite == "" or output_file == "" or start_row <= 0 or end_row <= 0):
+#FIXME: No control over start_row > end_row
+if (input_file == "" or sheet == "" or suite == "" or output_file == "" or start_row <= 0 or end_row <= 0 or requirements_id == ""):
     print ("One or more mandatory parameters are empty or have a invalid value")
-    print ("migrateExcelTestSuite.py --filename <excel_test_plan> --sheet <test_plan_sheet> --start <start_row> --end <end_row> --suite <ouput_test_suite_name> --output <output_filename>")
+    print (invocation_sample)
     sys.exit(2)
 
 
-write_testlink_xml(read_excel_test_plan(input_file,sheet, suite, start_row, end_row), output_file)
+write_testlink_xml(read_excel_test_plan(input_file,sheet, suite, start_row, end_row, requirements_id), requirements_id, output_file)
 
      
         
